@@ -15,6 +15,12 @@ venv/
 *.h5
 *.csv
 *.safetensors
+backend/model_v1/
+**/model_v1/
+
+# Hugging Face cache
+**/.cache/huggingface/
+**/.cache/torch/
 
 # OS
 .DS_Store
