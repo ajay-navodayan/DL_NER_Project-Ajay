@@ -27,13 +27,24 @@ def to_jsonable(value):
 
     return value
 
-# Load model
-ner_pipeline = pipeline(
-    "ner",
-    model=str(MODEL_DIR),
-    tokenizer=str(MODEL_DIR),
-    aggregation_strategy="simple"
-)
+# Load model with a clear startup error if missing or invalid.
+if not MODEL_DIR.exists():
+    raise FileNotFoundError(
+        f"Model folder not found: {MODEL_DIR}. "
+        "Restore the model files or update MODEL_DIR."
+    )
+
+try:
+    ner_pipeline = pipeline(
+        "ner",
+        model=str(MODEL_DIR),
+        tokenizer=str(MODEL_DIR),
+        aggregation_strategy="simple"
+    )
+except Exception as exc:
+    raise RuntimeError(
+        f"Failed to load model from {MODEL_DIR}: {exc}"
+    ) from exc
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -77,4 +88,4 @@ def upload_pdf():
     })
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    app.run(debug=True)
