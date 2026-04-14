@@ -1,0 +1,20 @@
+# Node
+node_modules/
+dist/
+build/
+
+# Python
+__pycache__/
+*.pyc
+.env
+venv/
+
+# ML / Large files
+*.pt
+*.bin
+*.h5
+*.csv
+
+# OS
+.DS_Store
+Thumbs.db
