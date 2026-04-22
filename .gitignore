@@ -17,6 +17,8 @@ venv/
 *.safetensors
 backend/model_v1/
 **/model_v1/
+backend/biobert_disease_ner_final/
+**/biobert_disease_ner_final/
 
 # Hugging Face cache
 **/.cache/huggingface/

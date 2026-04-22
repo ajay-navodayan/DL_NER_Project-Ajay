@@ -1,14 +1,31 @@
-import { useMemo, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
+
+const MAX_TEXTAREA_HEIGHT = 320;
 
 function Chat() {
   const [text, setText] = useState("");
   const [result, setResult] = useState([]);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const textareaRef = useRef(null);
+
+  const apiBase = "http://127.0.0.1:5000";
 
   const sortedEntities = useMemo(() => {
     return [...result]
       .filter((item) => Number.isFinite(item.start) && Number.isFinite(item.end))
       .sort((a, b) => a.start - b.start);
   }, [result]);
+
+  useLayoutEffect(() => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, MAX_TEXTAREA_HEIGHT)}px`;
+  }, [text]);
 
   const highlightedText = useMemo(() => {
     if (!text.trim() || sortedEntities.length === 0) {
@@ -54,54 +71,71 @@ function Chat() {
   }, [text, sortedEntities]);
 
   const sendMessage = async () => {
-    const res = await fetch("http://localhost:5000/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({ text })
-    });
+    setIsLoading(true);
+    setError("");
+    setResult([]);
 
-    const data = await res.json();
-    setResult(data.entities);
+    try {
+      const res = await fetch(`${apiBase}/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ text })
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data?.error || "Text analysis failed.");
+        return;
+      }
+
+      setResult(Array.isArray(data.entities) ? data.entities : []);
+    } catch (err) {
+      setError("Unable to reach the API. Please confirm the backend is running.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <div>
-      <h2>Chat Detection</h2>
-      <p style={{ color: "#555" }}>
-        Enter clinical text and see disease entities highlighted with table details.
-      </p>
-      <input
+      <label className="field-label" htmlFor="clinical-text">
+        Clinical text
+      </label>
+      <textarea
+        id="clinical-text"
+        className="textarea auto-textarea"
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Enter medical text..."
+        placeholder="Paste a clinical note or discharge summary..."
+        ref={textareaRef}
       />
-      <button onClick={sendMessage}>Analyze</button>
-
-      <div style={{ marginTop: "16px" }}>
-        <h3>Highlighted Text</h3>
-        <div
-          style={{
-            border: "1px solid #ddd",
-            borderRadius: "6px",
-            padding: "12px",
-            lineHeight: 1.6,
-            whiteSpace: "pre-wrap",
-            minHeight: "60px"
-          }}
+      <div className="actions-row">
+        <button
+          className="button"
+          onClick={sendMessage}
+          disabled={!text.trim() || isLoading}
         >
+          {isLoading ? "Analyzing..." : "Analyze text"}
+        </button>
+        <span className="helper-text">
+          Entity highlights and table results update after analysis.
+        </span>
+      </div>
+
+      {error ? <p className="empty-state">{error}</p> : null}
+
+      <div className="results-block">
+        <h3>Highlighted text</h3>
+        <div className="highlighted-text">
           {Array.isArray(highlightedText) ? (
             highlightedText.map((part) =>
               part.highlight ? (
                 <mark
                   key={part.key}
-                  style={{
-                    backgroundColor: "#ffe9a8",
-                    padding: "0 4px",
-                    borderRadius: "3px",
-                    marginRight: "2px"
-                  }}
+                  className="entity-mark"
                   title={part.label}
                 >
                   {part.value}
@@ -116,41 +150,29 @@ function Chat() {
         </div>
       </div>
 
-      <div style={{ marginTop: "16px" }}>
+      <div className="results-block">
         <h3>Entities</h3>
         {result.length === 0 ? (
-          <p>No entities yet.</p>
+          <p className="empty-state">No entities yet.</p>
         ) : (
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <table className="entity-table">
             <thead>
               <tr>
-                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left" }}>
-                  Word
-                </th>
-                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left" }}>
-                  Entity
-                </th>
-                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left" }}>
-                  Score
-                </th>
-                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left" }}>
-                  Start
-                </th>
-                <th style={{ borderBottom: "1px solid #ddd", textAlign: "left" }}>
-                  End
-                </th>
+                <th>Word</th>
+                <th>Entity</th>
+                <th>Score</th>
+                <th>Start</th>
+                <th>End</th>
               </tr>
             </thead>
             <tbody>
               {result.map((entity, index) => (
                 <tr key={`${entity.word}-${index}`}>
-                  <td style={{ padding: "6px 4px" }}>{entity.word}</td>
-                  <td style={{ padding: "6px 4px" }}>{entity.entity_group}</td>
-                  <td style={{ padding: "6px 4px" }}>
-                    {entity.score?.toFixed ? entity.score.toFixed(2) : "-"}
-                  </td>
-                  <td style={{ padding: "6px 4px" }}>{entity.start ?? "-"}</td>
-                  <td style={{ padding: "6px 4px" }}>{entity.end ?? "-"}</td>
+                  <td>{entity.word}</td>
+                  <td>{entity.entity_group ?? "-"}</td>
+                  <td>{entity.score?.toFixed ? entity.score.toFixed(2) : "-"}</td>
+                  <td>{entity.start ?? "-"}</td>
+                  <td>{entity.end ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
