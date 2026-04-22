@@ -16,7 +16,6 @@ function App() {
           </div>
         </div>
         <div className="header-actions">
-          <button className="header-button">New analysis</button>
           <div className="header-meta">Clinical NLP workspace</div>
         </div>
       </header>
